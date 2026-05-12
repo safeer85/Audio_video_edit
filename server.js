@@ -592,10 +592,10 @@ async function fetchOnlineLyrics(trackInfo) {
 }
 
 function lyricsFromLrclibData(data) {
-  if (data?.syncedLyrics) {
+  if (typeof data?.syncedLyrics === "string" && data.syncedLyrics.trim()) {
     return { text: data.syncedLyrics, synced: true, source: "syncedLyrics" };
   }
-  if (data?.plainLyrics) {
+  if (typeof data?.plainLyrics === "string" && data.plainLyrics.trim()) {
     return { text: data.plainLyrics, synced: false, source: "plainLyrics" };
   }
   return { text: "", synced: false, source: "" };

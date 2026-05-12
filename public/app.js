@@ -538,25 +538,26 @@ async function loadLyrics() {
   }
 
   const track = [result.title, result.artist].filter(Boolean).join(" - ");
+  const lyricText = typeof result.lyrics === "string" ? result.lyrics.trim() : "";
   lyricsMeta.textContent = result.found
     ? `${track || "Lyrics found"}${result.provider ? ` from ${result.provider}` : ""}${result.source ? ` (${result.source})` : ""}`
     : `${track || "This file"} has no embedded or online lyrics.`;
 
-  if (!result.found) {
+  if (!result.found || !lyricText) {
     lyricLines = [];
     lyricsBox.textContent = "No lyrics found for this file.";
     lyricsFullscreenBox.textContent = "No lyrics found for this file.";
     return;
   }
 
-  if (result.synced || looksLikeLrc(result.lyrics)) {
-    lyricLines = parseLrc(result.lyrics);
+  if (result.synced || looksLikeLrc(lyricText)) {
+    lyricLines = parseLrc(lyricText);
     renderSyncedLyrics();
     updateSyncedLyrics();
   } else {
     lyricLines = [];
-    lyricsBox.textContent = result.lyrics;
-    lyricsFullscreenBox.textContent = result.lyrics;
+    lyricsBox.textContent = lyricText;
+    lyricsFullscreenBox.textContent = lyricText;
   }
   lyricsOverlayMeta.textContent = lyricsMeta.textContent;
 }
@@ -600,6 +601,10 @@ function parseLrc(text) {
   for (const rawLine of String(text || "").split(/\r?\n/)) {
     const matches = [...rawLine.matchAll(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g)];
     const lyricText = rawLine.replace(/\[[^\]]+\]/g, "").trim();
+    const normalizedText = lyricText.toLowerCase();
+    if (!lyricText || normalizedText === "false" || normalizedText === "null" || normalizedText === "undefined") {
+      continue;
+    }
     for (const match of matches) {
       const minutes = Number(match[1]);
       const seconds = Number(match[2]);
@@ -613,6 +618,7 @@ function parseLrc(text) {
 }
 
 function renderSyncedLyrics() {
+  activeLyricIndex = -2;
   if (!lyricLines.length) {
     lyricsBox.textContent = "No synced lyric lines found.";
     lyricsFullscreenBox.textContent = "No synced lyric lines found.";
@@ -634,18 +640,33 @@ function updateSyncedLyrics() {
     if (lyricLines[index].time <= time) nextIndex = index;
     else break;
   }
-  if (nextIndex === activeLyricIndex) return;
+  const boxes = [lyricsBox, lyricsFullscreenBox];
+  const activeStillRendered = boxes.every(box => (
+    nextIndex < 0 || box.querySelector(`.lyricLine.active[data-index="${nextIndex}"]`)
+  ));
+  if (nextIndex === activeLyricIndex && activeStillRendered) return;
 
-  for (const box of [lyricsBox, lyricsFullscreenBox]) {
+  for (const box of boxes) {
     const previous = box.querySelector(".lyricLine.active");
     if (previous) previous.classList.remove("active");
     const current = box.querySelector(`[data-index="${nextIndex}"]`);
     if (current) {
       current.classList.add("active");
-      current.scrollIntoView({ block: "center", behavior: "smooth" });
+      centerLyricLine(box, current);
     }
   }
   activeLyricIndex = nextIndex;
+}
+
+function centerLyricLine(container, line) {
+  const containerRect = container.getBoundingClientRect();
+  const lineRect = line.getBoundingClientRect();
+  const lineTopInsideContainer = lineRect.top - containerRect.top + container.scrollTop;
+  const targetTop = lineTopInsideContainer - (container.clientHeight / 2) + (lineRect.height / 2);
+  container.scrollTo({
+    top: Math.max(0, targetTop),
+    behavior: "smooth"
+  });
 }
 
 function openLyricsFullscreen() {
