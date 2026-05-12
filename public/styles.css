@@ -1,12 +1,13 @@
 :root {
   color-scheme: light;
-  --bg: #f6f7f9;
-  --panel: #ffffff;
-  --line: #d9dee7;
-  --text: #1e2430;
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-soft: #f9fafb;
+  --line: #d7dde6;
+  --text: #1f2937;
   --muted: #667085;
   --accent: #0f766e;
-  --accent-dark: #115e59;
+  --accent-soft: #d9ebe8;
   --danger: #b42318;
   --code: #111827;
 }
@@ -19,7 +20,7 @@ body {
   margin: 0;
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 248px minmax(0, 1fr);
   color: var(--text);
   background: var(--bg);
   font-family: Inter, Segoe UI, system-ui, -apple-system, sans-serif;
@@ -33,17 +34,17 @@ textarea {
 }
 
 button {
-  min-height: 38px;
+  min-height: 34px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
   color: var(--text);
   cursor: pointer;
-  padding: 0 12px;
+  padding: 0 11px;
 }
 
 button:hover {
-  border-color: #9aa6b8;
+  border-color: #98a2b3;
 }
 
 .primary {
@@ -52,8 +53,38 @@ button:hover {
   color: #fff;
 }
 
-.primary:hover {
-  background: var(--accent-dark);
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+h3 {
+  font-size: 14px;
+}
+
+h4 {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+p,
+label,
+.dropzone span {
+  color: var(--muted);
 }
 
 .sidebar {
@@ -62,37 +93,15 @@ button:hover {
   top: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 22px;
+  gap: 18px;
+  padding: 18px;
   border-right: 1px solid var(--line);
-  background: #eef2f5;
+  background: #eef2f4;
 }
 
-h1,
-h2,
-h3,
-p {
-  margin: 0;
-}
-
-h1 {
-  font-size: 22px;
-  line-height: 1.15;
-}
-
-h2 {
-  font-size: 26px;
-}
-
-h3 {
-  font-size: 15px;
-}
-
-p,
-label,
-.field span,
-.dropzone span {
-  color: var(--muted);
+.brand {
+  display: grid;
+  gap: 6px;
 }
 
 nav {
@@ -107,9 +116,10 @@ nav button {
 }
 
 nav button.active {
-  background: #dce7e5;
-  border-color: #9cc9c2;
-  color: var(--accent-dark);
+  background: var(--accent-soft);
+  border-color: #9ac8c0;
+  color: #115e59;
+  font-weight: 700;
 }
 
 .paths {
@@ -121,20 +131,36 @@ nav button.active {
 
 code {
   overflow-wrap: anywhere;
-  color: #334155;
+  color: #344054;
 }
 
-main {
+.appShell {
+  height: 100vh;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 18px;
-  padding: 18px;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  gap: 14px;
+  padding: 14px;
+  overflow: hidden;
 }
 
-.workspace {
+.editor,
+.inspector {
+  min-height: 0;
+  overflow: auto;
+}
+
+.editor {
   display: grid;
   align-content: start;
-  gap: 14px;
+  gap: 12px;
+  padding-right: 2px;
+}
+
+.inspector {
+  display: grid;
+  grid-template-rows: minmax(360px, 1.45fr) minmax(210px, 0.8fr) minmax(140px, 0.45fr);
+  gap: 12px;
+  min-height: 0;
 }
 
 .topbar,
@@ -142,27 +168,41 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
 }
 
 .topbar {
-  min-height: 64px;
+  min-height: 52px;
 }
 
-.dropzone,
+.topActions {
+  display: flex;
+  gap: 8px;
+}
+
 .panel,
-.files section {
+.dropzone {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--surface);
+}
+
+.panel {
+  display: grid;
+  gap: 13px;
+  padding: 14px;
+}
+
+.compactPanel {
+  gap: 10px;
 }
 
 .dropzone {
-  min-height: 110px;
+  min-height: 76px;
   display: grid;
   place-items: center;
-  gap: 4px;
-  padding: 20px;
+  gap: 3px;
+  padding: 14px;
   text-align: center;
   border-style: dashed;
   position: relative;
@@ -180,15 +220,44 @@ main {
   background: #eefaf8;
 }
 
-.panel {
+.previewStage {
   display: grid;
-  gap: 16px;
-  padding: 16px;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.artworkPanel {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  overflow: hidden;
+}
+
+.artworkPanel img {
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.artworkPanel.hasArtwork span {
+  display: none;
+}
+
+.artworkPanel.hasArtwork img {
+  display: block;
 }
 
 .mediaPanel video {
   width: 100%;
-  max-height: 420px;
+  height: 100%;
+  min-height: 220px;
+  max-height: 46vh;
   border-radius: 6px;
   background: #0b1220;
 }
@@ -203,18 +272,18 @@ main {
 }
 
 .timeReadout span:first-child {
-  color: var(--accent-dark);
+  color: #115e59;
   font-weight: 700;
 }
 
 .trimTimeline {
   display: grid;
-  gap: 8px;
+  gap: 7px;
 }
 
 .timelineTrack {
   position: relative;
-  height: 36px;
+  height: 34px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #e8edf3;
@@ -234,9 +303,9 @@ main {
 .timelineHandle {
   position: absolute;
   top: 3px;
-  width: 18px;
-  height: 28px;
-  min-height: 28px;
+  width: 16px;
+  height: 26px;
+  min-height: 26px;
   padding: 0;
   border-color: var(--accent);
   background: var(--accent);
@@ -259,7 +328,7 @@ main {
   bottom: 2px;
   left: 0%;
   width: 2px;
-  background: #b42318;
+  background: var(--danger);
   transform: translateX(-1px);
   pointer-events: none;
   z-index: 2;
@@ -279,10 +348,19 @@ main {
   font-family: Consolas, Monaco, monospace;
 }
 
-.liveAudioControls {
+.previewControls,
+.liveAudioControls,
+.grid {
   display: grid;
+  gap: 8px;
+}
+
+.previewControls {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.liveAudioControls {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
 }
 
 .liveAudioControls label {
@@ -290,17 +368,17 @@ main {
   grid-template-columns: 1fr auto;
   gap: 6px 10px;
   align-items: center;
-  min-height: 64px;
+  min-height: 58px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 10px;
-  background: #fbfcfd;
+  padding: 9px;
+  background: var(--surface-soft);
   text-transform: none;
 }
 
 .liveAudioControls input {
   grid-column: 1 / -1;
-  min-height: 24px;
+  min-height: 22px;
   padding: 0;
 }
 
@@ -309,21 +387,13 @@ main {
   font: 13px/1.4 Consolas, Monaco, monospace;
 }
 
-.previewControls {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
 .grid {
-  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
 }
 
 .field {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -341,7 +411,7 @@ input,
 select,
 textarea {
   width: 100%;
-  min-height: 38px;
+  min-height: 36px;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 8px 10px;
@@ -350,55 +420,119 @@ textarea {
 }
 
 textarea {
-  min-height: 110px;
+  min-height: 96px;
   resize: vertical;
 }
 
-pre {
+pre,
+.lyricsBox {
   margin: 0;
-  min-height: 58px;
-  max-height: 330px;
   overflow: auto;
   border-radius: 6px;
-  background: var(--code);
-  color: #e5e7eb;
-  padding: 12px;
+  padding: 11px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+pre {
+  min-height: 58px;
+  max-height: 260px;
+  background: var(--code);
+  color: #e5e7eb;
   font: 13px/1.5 Consolas, Monaco, monospace;
 }
 
-.files {
-  display: grid;
-  align-content: start;
-  gap: 14px;
+.commandPanel pre {
+  max-height: 150px;
 }
 
-.files section {
-  padding: 14px;
+.logPanel pre {
+  max-height: 280px;
+}
+
+.filePanel,
+.lyricsPanel,
+.logPanel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.filePanel {
+  padding-bottom: 12px;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.fileGroups {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+}
+
+.fileGroups section {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
 }
 
 .fileList {
   display: grid;
+  align-content: start;
   gap: 8px;
-  margin-top: 12px;
+  max-height: 100%;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .fileItem {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 9px;
   align-items: center;
-  min-height: 48px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 8px;
-  background: #fbfcfd;
+  padding: 10px;
+  background: var(--surface-soft);
+}
+
+.fileItem:hover {
+  border-color: #b8c2cf;
+  background: #fff;
+}
+
+.fileInfo {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 8px;
+  align-items: center;
+}
+
+.fileBadge {
+  grid-row: span 2;
+  min-width: 42px;
+  border-radius: 5px;
+  padding: 4px 6px;
+  background: #e8edf3;
+  color: #344054;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.inputFile .fileBadge {
+  background: var(--accent-soft);
+  color: #115e59;
+}
+
+.outputFile .fileBadge {
+  background: #eceff3;
+  color: #475467;
 }
 
 .fileItem strong {
   overflow-wrap: anywhere;
   font-size: 13px;
+  line-height: 1.25;
 }
 
 .fileItem span {
@@ -406,16 +540,24 @@ pre {
   font-size: 12px;
 }
 
-.fileItem a,
-.fileItem button {
-  white-space: nowrap;
+.fileActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
 }
 
-.fileActions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
+.fileActions a,
+.fileActions button {
+  display: grid;
+  place-items: center;
+  white-space: nowrap;
+  text-decoration: none;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
 }
 
 .danger {
@@ -423,16 +565,115 @@ pre {
   color: var(--danger);
 }
 
-.danger:hover {
-  border-color: var(--danger);
+.lyricsPanel {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+}
+
+.lyricsActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.lyricsBox {
+  min-height: 0;
+  max-height: none;
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--line);
+  line-height: 1.6;
+  font-family: Segoe UI, system-ui, -apple-system, sans-serif;
+}
+
+.logPanel {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.logPanel pre {
+  min-height: 0;
+  max-height: none;
+}
+
+.lyricLine {
+  padding: 7px 8px;
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.lyricLine.active {
+  background: var(--accent-soft);
+  color: #115e59;
+  font-weight: 700;
+}
+
+.lyricsOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
+  padding: 28px;
+  background: rgba(244, 246, 248, 0.98);
+}
+
+.lyricsOverlay.open {
+  display: grid;
+}
+
+.overlayOpen {
+  overflow: hidden;
+}
+
+.lyricsOverlayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.lyricsFullscreenBox {
+  max-width: 980px;
+  width: 100%;
+  min-height: 0;
+  margin: 0 auto;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 28px;
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.lyricsFullscreenBox .lyricLine {
+  padding: 12px 14px;
+}
+
+.lyricsFullscreenBox .lyricLine.active {
+  font-size: 30px;
 }
 
 .hint {
+  min-height: 76px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
   color: var(--muted);
   font-size: 13px;
+  text-align: center;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1180px) {
   body {
     grid-template-columns: 1fr;
   }
@@ -442,13 +683,31 @@ pre {
     position: static;
   }
 
-  main {
+  .appShell {
+    height: auto;
     grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .editor,
+  .inspector {
+    overflow: visible;
+  }
+
+  .inspector {
+    grid-template-rows: none;
+  }
+
+  .fileList,
+  .lyricsBox,
+  .logPanel pre {
+    max-height: 320px;
   }
 }
 
-@media (max-width: 720px) {
-  .grid {
+@media (max-width: 760px) {
+  .grid,
+  .liveAudioControls {
     grid-template-columns: 1fr;
   }
 
@@ -456,7 +715,7 @@ pre {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .liveAudioControls {
+  .previewStage {
     grid-template-columns: 1fr;
   }
 
@@ -464,5 +723,29 @@ pre {
   .panelHeader {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .lyricsActions,
+  .lyricsOverlayHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .lyricsOverlay {
+    padding: 16px;
+  }
+
+  .lyricsFullscreenBox {
+    padding: 18px;
+    font-size: 19px;
+  }
+
+  .lyricsFullscreenBox .lyricLine.active {
+    font-size: 23px;
+  }
+
+  .topActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }

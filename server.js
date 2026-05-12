@@ -15,8 +15,10 @@ const ROOT = __dirname;
 const MEDIA_DIR = path.join(ROOT, "media");
 const OUTPUT_DIR = path.join(ROOT, "outputs");
 const PUBLIC_DIR = path.join(ROOT, "public");
+const LYRICS_DIR = path.join(ROOT, "lyrics");
+const ARTWORK_DIR = path.join(ROOT, "artwork");
 
-for (const dir of [MEDIA_DIR, OUTPUT_DIR, PUBLIC_DIR]) {
+for (const dir of [MEDIA_DIR, OUTPUT_DIR, PUBLIC_DIR, LYRICS_DIR, ARTWORK_DIR]) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
@@ -36,6 +38,7 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.static(PUBLIC_DIR));
 app.use("/media", express.static(MEDIA_DIR));
 app.use("/outputs", express.static(OUTPUT_DIR));
+app.use("/artwork", express.static(ARTWORK_DIR));
 
 app.get("/api/status", async (_req, res) => {
   const ffmpeg = await runCapture("ffmpeg", ["-version"]);
@@ -97,6 +100,80 @@ app.post("/api/probe", async (req, res) => {
 
   if (!result.ok) return res.status(500).json({ error: result.out });
   res.json(JSON.parse(result.out));
+});
+
+app.post("/api/artwork", async (req, res) => {
+  const input = normalizeInput(req.body.input);
+  if (!input) return res.status(400).json({ error: "Choose an input file first." });
+
+  const key = `${safeFilePart(path.basename(input))}-${fs.statSync(input).mtimeMs.toFixed(0)}.jpg`;
+  const output = path.join(ARTWORK_DIR, key);
+  if (fs.existsSync(output)) return res.json({ found: true, url: `/artwork/${encodeURIComponent(key)}`, path: output });
+
+  const result = await runCapture("ffmpeg", [
+    "-y",
+    "-i", input,
+    "-an",
+    "-vcodec", "mjpeg",
+    "-frames:v", "1",
+    output
+  ]);
+
+  if (result.ok && fs.existsSync(output) && fs.statSync(output).size > 0) {
+    return res.json({ found: true, url: `/artwork/${encodeURIComponent(key)}`, path: output });
+  }
+
+  if (fs.existsSync(output)) fs.unlinkSync(output);
+  res.json({ found: false });
+});
+
+app.post("/api/lyrics", async (req, res) => {
+  const input = normalizeInput(req.body.input);
+  if (!input) return res.status(400).json({ error: "Choose an input file first." });
+
+  const result = await runCapture("ffprobe", [
+    "-v", "error",
+    "-print_format", "json",
+    "-show_format",
+    "-show_streams",
+    input
+  ]);
+
+  if (!result.ok) return res.status(500).json({ error: result.out });
+
+  const probe = JSON.parse(result.out);
+  const tags = probe.format?.tags || {};
+  const lyrics = extractLyrics(probe);
+  const trackInfo = getTrackInfo(input, probe);
+
+  if (!lyrics.text && req.body.online !== false) {
+    const online = await fetchOnlineLyrics(trackInfo);
+    if (online.text) {
+      const cacheName = `${safeFilePart(trackInfo.artist || "unknown")} - ${safeFilePart(trackInfo.title || path.parse(input).name)}.${online.synced ? "lrc" : "txt"}`;
+      const cacheFile = path.join(LYRICS_DIR, cacheName);
+      fs.writeFileSync(cacheFile, online.text);
+      return res.json({
+        found: true,
+        lyrics: online.text,
+        synced: online.synced,
+        source: online.source,
+        provider: "LRCLIB",
+        cachedFile: cacheFile,
+        title: trackInfo.title,
+        artist: trackInfo.artist
+      });
+    }
+  }
+
+  res.json({
+    found: Boolean(lyrics.text),
+    lyrics: lyrics.text,
+    synced: looksLikeLrc(lyrics.text),
+    source: lyrics.source,
+    provider: lyrics.text ? "embedded" : "",
+    title: trackInfo.title || tags.title || "",
+    artist: trackInfo.artist || tags.artist || tags.album_artist || ""
+  });
 });
 
 app.post("/api/run", (req, res) => {
@@ -353,6 +430,7 @@ function escapeFilterPath(filePath) {
 
 function listFiles(dir, prefix) {
   return fs.readdirSync(dir)
+    .filter(name => name !== ".gitkeep")
     .map(name => {
       const full = path.join(dir, name);
       const stat = fs.statSync(full);
@@ -422,6 +500,113 @@ function runCapture(command, args) {
     proc.on("error", error => resolve({ ok: false, out: error.message }));
     proc.on("close", code => resolve({ ok: code === 0, out }));
   });
+}
+
+function extractLyrics(probe) {
+  const lyricKeys = [
+    "lyrics",
+    "lyric",
+    "unsyncedlyrics",
+    "unsynchronised lyrics",
+    "syncedlyrics",
+    "synchronizedlyrics",
+    "uslt",
+    "sylt",
+    "description"
+  ];
+  const tagGroups = [
+    probe.format?.tags,
+    ...(probe.streams || []).map(stream => stream.tags)
+  ].filter(Boolean);
+
+  for (const tags of tagGroups) {
+    for (const [key, value] of Object.entries(tags)) {
+      if (lyricKeys.includes(key.toLowerCase()) && String(value).trim()) {
+        return { text: String(value).trim(), source: key };
+      }
+    }
+  }
+
+  return { text: "", source: "" };
+}
+
+function getTrackInfo(input, probe) {
+  const tags = probe.format?.tags || {};
+  const parsedName = parseArtistTitle(path.parse(input).name.replace(/^\d+-/, ""));
+  const duration = Number(probe.format?.duration || 0);
+  return {
+    title: tags.title || parsedName.title || "",
+    artist: tags.artist || tags.album_artist || parsedName.artist || "",
+    album: tags.album || "",
+    duration: Number.isFinite(duration) ? Math.round(duration) : undefined
+  };
+}
+
+function parseArtistTitle(name) {
+  const match = name.match(/^(.+?)\s+-\s+(.+)$/);
+  if (!match) return { artist: "", title: name };
+  return { artist: match[1].trim(), title: match[2].trim() };
+}
+
+async function fetchOnlineLyrics(trackInfo) {
+  if (!trackInfo.title || !trackInfo.artist) return { text: "", synced: false, source: "" };
+
+  const params = new URLSearchParams({
+    track_name: trackInfo.title,
+    artist_name: trackInfo.artist
+  });
+  if (trackInfo.album) params.set("album_name", trackInfo.album);
+  if (trackInfo.duration) params.set("duration", String(trackInfo.duration));
+
+  try {
+    const response = await fetch(`https://lrclib.net/api/get?${params}`, {
+      headers: {
+        "User-Agent": "AudioVideoEdit/1.0 (local personal media editor)"
+      }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const found = lyricsFromLrclibData(data);
+      if (found.text) return found;
+    }
+
+    params.delete("duration");
+    params.delete("album_name");
+    const searchResponse = await fetch(`https://lrclib.net/api/search?${params}`, {
+      headers: {
+        "User-Agent": "AudioVideoEdit/1.0 (local personal media editor)"
+      }
+    });
+    if (!searchResponse.ok) return { text: "", synced: false, source: "" };
+
+    const results = await searchResponse.json();
+    const best = Array.isArray(results)
+      ? results.find(item => item.syncedLyrics) || results.find(item => item.plainLyrics)
+      : null;
+    if (best) return lyricsFromLrclibData(best);
+  } catch (_error) {
+    return { text: "", synced: false, source: "" };
+  }
+
+  return { text: "", synced: false, source: "" };
+}
+
+function lyricsFromLrclibData(data) {
+  if (data?.syncedLyrics) {
+    return { text: data.syncedLyrics, synced: true, source: "syncedLyrics" };
+  }
+  if (data?.plainLyrics) {
+    return { text: data.plainLyrics, synced: false, source: "plainLyrics" };
+  }
+  return { text: "", synced: false, source: "" };
+}
+
+function looksLikeLrc(text) {
+  return /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(text || "");
+}
+
+function safeFilePart(value) {
+  return String(value).replace(/[<>:"/\\|?*]+/g, "_").trim().slice(0, 80) || "unknown";
 }
 
 const PORT = process.env.PORT || 5173;

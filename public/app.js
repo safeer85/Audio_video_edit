@@ -106,6 +106,8 @@ let mediaSourceNode = null;
 let bassFilter = null;
 let trebleFilter = null;
 let previewGain = null;
+let lyricLines = [];
+let activeLyricIndex = -1;
 
 const nav = document.querySelector("#modeNav");
 const form = document.querySelector("#toolForm");
@@ -115,6 +117,8 @@ const refreshBtn = document.querySelector("#refreshBtn");
 const commandPreview = document.querySelector("#commandPreview");
 const log = document.querySelector("#log");
 const mediaPlayer = document.querySelector("#mediaPlayer");
+const artworkPanel = document.querySelector("#artworkPanel");
+const artworkImage = document.querySelector("#artworkImage");
 const previewName = document.querySelector("#previewName");
 const currentTime = document.querySelector("#currentTime");
 const durationTime = document.querySelector("#durationTime");
@@ -136,6 +140,14 @@ const liveTreble = document.querySelector("#liveTreble");
 const liveVolumeValue = document.querySelector("#liveVolumeValue");
 const liveBassValue = document.querySelector("#liveBassValue");
 const liveTrebleValue = document.querySelector("#liveTrebleValue");
+const lyricsBtn = document.querySelector("#lyricsBtn");
+const lyricsBox = document.querySelector("#lyricsBox");
+const lyricsMeta = document.querySelector("#lyricsMeta");
+const lyricsFullscreenBtn = document.querySelector("#lyricsFullscreenBtn");
+const lyricsOverlay = document.querySelector("#lyricsOverlay");
+const lyricsCloseBtn = document.querySelector("#lyricsCloseBtn");
+const lyricsFullscreenBox = document.querySelector("#lyricsFullscreenBox");
+const lyricsOverlayMeta = document.querySelector("#lyricsOverlayMeta");
 
 for (const [key, mode] of Object.entries(modes)) {
   const button = document.createElement("button");
@@ -184,6 +196,15 @@ mediaPlayer.addEventListener("play", initPreviewAudio);
 liveVolume.addEventListener("input", updateLiveAudio);
 liveBass.addEventListener("input", updateLiveAudio);
 liveTreble.addEventListener("input", updateLiveAudio);
+lyricsBtn.addEventListener("click", loadLyrics);
+lyricsFullscreenBtn.addEventListener("click", openLyricsFullscreen);
+lyricsCloseBtn.addEventListener("click", closeLyricsFullscreen);
+lyricsOverlay.addEventListener("click", event => {
+  if (event.target === lyricsOverlay) closeLyricsFullscreen();
+});
+window.addEventListener("keydown", event => {
+  if (event.key === "Escape") closeLyricsFullscreen();
+});
 
 const dropzone = document.querySelector("#dropzone");
 const fileInput = document.querySelector("#fileInput");
@@ -370,9 +391,15 @@ function renderFiles(id, list, kind) {
   }
   for (const file of list) {
     const item = document.createElement("div");
-    item.className = "fileItem";
+    item.className = `fileItem ${kind === "media" ? "inputFile" : "outputFile"}`;
     const info = document.createElement("div");
-    info.innerHTML = `<strong>${escapeHtml(file.name)}</strong><span>${formatBytes(file.size)}</span>`;
+    const extension = file.name.includes(".") ? file.name.split(".").pop().toUpperCase() : "FILE";
+    info.className = "fileInfo";
+    info.innerHTML = `
+      <span class="fileBadge">${escapeHtml(extension)}</span>
+      <strong>${escapeHtml(file.name)}</strong>
+      <span>${formatBytes(file.size)}</span>
+    `;
     item.appendChild(info);
     const actions = document.createElement("div");
     actions.className = "fileActions";
@@ -398,7 +425,7 @@ function renderFiles(id, list, kind) {
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "danger";
-    deleteButton.textContent = "Delete";
+    deleteButton.textContent = "Remove";
     deleteButton.addEventListener("click", () => deleteFile(kind, file));
     actions.appendChild(deleteButton);
     item.appendChild(actions);
@@ -452,16 +479,95 @@ function loadPreview(filePath) {
   mediaPlayer.src = file.url;
   mediaPlayer.load();
   setInputValue(file.path);
+  loadArtwork(file.path);
+  clearLyrics();
+  loadLyrics();
 }
 
 function clearPreview() {
   selectedPreviewPath = "";
   mediaPlayer.removeAttribute("src");
   mediaPlayer.load();
+  clearArtwork();
   previewName.textContent = "Choose an input file to preview it here.";
+  clearLyrics();
   trimStart = 0;
   trimEnd = 0;
   updatePlayerTime();
+}
+
+async function loadArtwork(filePath) {
+  clearArtwork();
+  const response = await fetch("/api/artwork", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ input: filePath })
+  });
+  const result = await response.json();
+  if (response.ok && result.found) {
+    artworkImage.src = result.url;
+    artworkPanel.classList.add("hasArtwork");
+  }
+}
+
+function clearArtwork() {
+  artworkPanel.classList.remove("hasArtwork");
+  artworkImage.removeAttribute("src");
+}
+
+async function loadLyrics() {
+  if (!selectedPreviewPath) {
+    lyricsMeta.textContent = "Choose an audio file to check for embedded lyrics.";
+    lyricsBox.textContent = "No file selected.";
+    return;
+  }
+
+  lyricsMeta.textContent = "Checking embedded lyrics...";
+  lyricsBox.textContent = "";
+  const response = await fetch("/api/lyrics", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ input: selectedPreviewPath })
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    lyricsMeta.textContent = "Lyrics check failed.";
+    lyricsBox.textContent = result.error || "Could not read lyrics.";
+    lyricLines = [];
+    return;
+  }
+
+  const track = [result.title, result.artist].filter(Boolean).join(" - ");
+  lyricsMeta.textContent = result.found
+    ? `${track || "Lyrics found"}${result.provider ? ` from ${result.provider}` : ""}${result.source ? ` (${result.source})` : ""}`
+    : `${track || "This file"} has no embedded or online lyrics.`;
+
+  if (!result.found) {
+    lyricLines = [];
+    lyricsBox.textContent = "No lyrics found for this file.";
+    lyricsFullscreenBox.textContent = "No lyrics found for this file.";
+    return;
+  }
+
+  if (result.synced || looksLikeLrc(result.lyrics)) {
+    lyricLines = parseLrc(result.lyrics);
+    renderSyncedLyrics();
+    updateSyncedLyrics();
+  } else {
+    lyricLines = [];
+    lyricsBox.textContent = result.lyrics;
+    lyricsFullscreenBox.textContent = result.lyrics;
+  }
+  lyricsOverlayMeta.textContent = lyricsMeta.textContent;
+}
+
+function clearLyrics() {
+  lyricsMeta.textContent = "Choose an audio file to check for embedded lyrics.";
+  lyricsBox.textContent = "No lyrics loaded.";
+  lyricsOverlayMeta.textContent = "No lyrics loaded.";
+  lyricsFullscreenBox.textContent = "No lyrics loaded.";
+  lyricLines = [];
+  activeLyricIndex = -1;
 }
 
 function restorePreviewSelection() {
@@ -486,6 +592,78 @@ function updatePlayerTime() {
   currentTime.textContent = formatTime(mediaPlayer.currentTime || 0);
   durationTime.textContent = Number.isFinite(mediaPlayer.duration) ? formatTime(mediaPlayer.duration) : "00:00:00.000";
   syncTrimUi();
+  updateSyncedLyrics();
+}
+
+function parseLrc(text) {
+  const lines = [];
+  for (const rawLine of String(text || "").split(/\r?\n/)) {
+    const matches = [...rawLine.matchAll(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g)];
+    const lyricText = rawLine.replace(/\[[^\]]+\]/g, "").trim();
+    for (const match of matches) {
+      const minutes = Number(match[1]);
+      const seconds = Number(match[2]);
+      const fraction = match[3] ? Number(match[3].padEnd(3, "0")) / 1000 : 0;
+      lines.push({ time: minutes * 60 + seconds + fraction, text: lyricText });
+    }
+  }
+  return lines
+    .filter(line => line.text)
+    .sort((a, b) => a.time - b.time);
+}
+
+function renderSyncedLyrics() {
+  if (!lyricLines.length) {
+    lyricsBox.textContent = "No synced lyric lines found.";
+    lyricsFullscreenBox.textContent = "No synced lyric lines found.";
+    return;
+  }
+
+  const html = lyricLines.map((line, index) => (
+    `<div class="lyricLine" data-index="${index}">${escapeHtml(line.text)}</div>`
+  )).join("");
+  lyricsBox.innerHTML = html;
+  lyricsFullscreenBox.innerHTML = html;
+}
+
+function updateSyncedLyrics() {
+  if (!lyricLines.length) return;
+  const time = mediaPlayer.currentTime || 0;
+  let nextIndex = -1;
+  for (let index = 0; index < lyricLines.length; index += 1) {
+    if (lyricLines[index].time <= time) nextIndex = index;
+    else break;
+  }
+  if (nextIndex === activeLyricIndex) return;
+
+  for (const box of [lyricsBox, lyricsFullscreenBox]) {
+    const previous = box.querySelector(".lyricLine.active");
+    if (previous) previous.classList.remove("active");
+    const current = box.querySelector(`[data-index="${nextIndex}"]`);
+    if (current) {
+      current.classList.add("active");
+      current.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }
+  activeLyricIndex = nextIndex;
+}
+
+function openLyricsFullscreen() {
+  lyricsOverlayMeta.textContent = lyricsMeta.textContent;
+  lyricsOverlay.classList.add("open");
+  lyricsOverlay.setAttribute("aria-hidden", "false");
+  document.body.classList.add("overlayOpen");
+  updateSyncedLyrics();
+}
+
+function closeLyricsFullscreen() {
+  lyricsOverlay.classList.remove("open");
+  lyricsOverlay.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("overlayOpen");
+}
+
+function looksLikeLrc(text) {
+  return /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(text || "");
 }
 
 function markCutPoint(kind) {

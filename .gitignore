@@ -4,8 +4,12 @@ node_modules/
 # Local uploaded media and generated FFmpeg outputs
 media/*
 outputs/*
+lyrics/*
+artwork/*
 !media/.gitkeep
 !outputs/.gitkeep
+!lyrics/.gitkeep
+!artwork/.gitkeep
 
 # Environment and local configuration
 .env

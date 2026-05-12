@@ -8,7 +8,7 @@
   </head>
   <body>
     <aside class="sidebar">
-      <div>
+      <div class="brand">
         <h1>Audio Video Edit</h1>
         <p id="status">Checking FFmpeg...</p>
       </div>
@@ -21,14 +21,17 @@
       </div>
     </aside>
 
-    <main>
-      <section class="workspace">
+    <main class="appShell">
+      <section class="editor">
         <div class="topbar">
           <div>
             <h2 id="modeTitle">Convert</h2>
             <p id="modeDescription"></p>
           </div>
-          <button id="refreshBtn" class="icon-text">Refresh</button>
+          <div class="topActions">
+            <button id="refreshBtn" type="button">Refresh</button>
+            <button id="runBtn" class="primary" type="button">Run FFmpeg</button>
+          </div>
         </div>
 
         <div class="dropzone" id="dropzone">
@@ -40,7 +43,7 @@
         <section class="panel mediaPanel">
           <div class="panelHeader">
             <div>
-              <h3>Preview And Cut Points</h3>
+              <h3>Preview</h3>
               <p id="previewName">Choose an input file to preview it here.</p>
             </div>
             <div class="timeReadout">
@@ -48,7 +51,15 @@
               <span id="durationTime">00:00:00.000</span>
             </div>
           </div>
-          <video id="mediaPlayer" controls preload="metadata"></video>
+
+          <div class="previewStage">
+            <div id="artworkPanel" class="artworkPanel">
+              <span>No artwork</span>
+              <img id="artworkImage" alt="Embedded cover artwork">
+            </div>
+            <video id="mediaPlayer" controls preload="metadata"></video>
+          </div>
+
           <div class="trimTimeline" id="trimTimeline">
             <div class="timelineTrack">
               <div class="timelineSelection" id="timelineSelection"></div>
@@ -60,6 +71,19 @@
               <span>Start <strong id="trimStartLabel">00:00:00.000</strong></span>
               <span>End <strong id="trimEndLabel">00:00:00.000</strong></span>
             </div>
+          </div>
+
+          <div class="previewControls">
+            <button id="backBtn" type="button">-1s</button>
+            <button id="startMarkBtn" type="button">Set Start</button>
+            <button id="endMarkBtn" type="button">Set End</button>
+            <button id="forwardBtn" type="button">+1s</button>
+          </div>
+        </section>
+
+        <section class="panel compactPanel">
+          <div class="panelHeader">
+            <h3>Live Audio Preview</h3>
           </div>
           <div class="liveAudioControls">
             <label>
@@ -78,44 +102,72 @@
               <span id="liveTrebleValue">0 dB</span>
             </label>
           </div>
-          <div class="previewControls">
-            <button id="backBtn" type="button">-1s</button>
-            <button id="startMarkBtn" type="button">Set Start</button>
-            <button id="endMarkBtn" type="button">Set End</button>
-            <button id="forwardBtn" type="button">+1s</button>
-          </div>
         </section>
 
-        <form id="toolForm" class="panel"></form>
+        <form id="toolForm" class="panel toolPanel"></form>
 
-        <section class="panel">
+        <section class="panel commandPanel">
           <div class="panelHeader">
             <h3>Command</h3>
-            <button id="runBtn" class="primary">Run FFmpeg</button>
           </div>
           <pre id="commandPreview">Choose settings to build a command.</pre>
         </section>
+      </section>
 
-        <section class="panel">
+      <aside class="inspector">
+        <section class="panel filePanel">
+          <div class="panelHeader">
+            <div>
+              <h3>File Library</h3>
+              <p>Choose inputs and open finished exports.</p>
+            </div>
+          </div>
+          <div class="fileGroups">
+            <section>
+              <h4>Input Files</h4>
+              <div id="mediaFiles" class="fileList"></div>
+            </section>
+            <section>
+              <h4>Outputs</h4>
+              <div id="outputFiles" class="fileList"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel lyricsPanel">
+          <div class="panelHeader">
+            <div>
+              <h3>Lyrics</h3>
+              <p id="lyricsMeta">Choose an audio file to check for lyrics.</p>
+            </div>
+            <div class="lyricsActions">
+              <button id="lyricsBtn" type="button">Check</button>
+              <button id="lyricsFullscreenBtn" type="button">Full Screen</button>
+            </div>
+          </div>
+          <div id="lyricsBox" class="lyricsBox">No lyrics loaded.</div>
+        </section>
+
+        <section class="panel logPanel">
           <div class="panelHeader">
             <h3>Live Log</h3>
-            <button id="stopBtn">Stop Job</button>
+            <button id="stopBtn" type="button">Stop</button>
           </div>
           <pre id="log"></pre>
         </section>
-      </section>
-
-      <aside class="files">
-        <section>
-          <h3>Input Files</h3>
-          <div id="mediaFiles" class="fileList"></div>
-        </section>
-        <section>
-          <h3>Outputs</h3>
-          <div id="outputFiles" class="fileList"></div>
-        </section>
       </aside>
     </main>
+
+    <div id="lyricsOverlay" class="lyricsOverlay" aria-hidden="true">
+      <div class="lyricsOverlayHeader">
+        <div>
+          <h2>Lyrics</h2>
+          <p id="lyricsOverlayMeta">No lyrics loaded.</p>
+        </div>
+        <button id="lyricsCloseBtn" type="button">Close</button>
+      </div>
+      <div id="lyricsFullscreenBox" class="lyricsFullscreenBox">No lyrics loaded.</div>
+    </div>
 
     <script src="/app.js"></script>
   </body>
