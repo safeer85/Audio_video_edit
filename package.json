@@ -1,0 +1,15 @@
+{
+  "name": "audio-video-edit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local FFmpeg UI for audio and video editing.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^2.0.2",
+    "ws": "^8.17.1"
+  }
+}

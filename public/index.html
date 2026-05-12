@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Audio Video Edit</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div>
+        <h1>Audio Video Edit</h1>
+        <p id="status">Checking FFmpeg...</p>
+      </div>
+      <nav id="modeNav"></nav>
+      <div class="paths">
+        <span>Media</span>
+        <code id="mediaPath"></code>
+        <span>Outputs</span>
+        <code id="outputPath"></code>
+      </div>
+    </aside>
+
+    <main>
+      <section class="workspace">
+        <div class="topbar">
+          <div>
+            <h2 id="modeTitle">Convert</h2>
+            <p id="modeDescription"></p>
+          </div>
+          <button id="refreshBtn" class="icon-text">Refresh</button>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <input id="fileInput" type="file" multiple>
+          <strong>Drop files here or choose files</strong>
+          <span>Uploaded files stay in this project's media folder.</span>
+        </div>
+
+        <section class="panel mediaPanel">
+          <div class="panelHeader">
+            <div>
+              <h3>Preview And Cut Points</h3>
+              <p id="previewName">Choose an input file to preview it here.</p>
+            </div>
+            <div class="timeReadout">
+              <span id="currentTime">00:00:00.000</span>
+              <span id="durationTime">00:00:00.000</span>
+            </div>
+          </div>
+          <video id="mediaPlayer" controls preload="metadata"></video>
+          <div class="trimTimeline" id="trimTimeline">
+            <div class="timelineTrack">
+              <div class="timelineSelection" id="timelineSelection"></div>
+              <button class="timelineHandle startHandle" id="startHandle" type="button" aria-label="Drag start time"></button>
+              <button class="timelineHandle endHandle" id="endHandle" type="button" aria-label="Drag end time"></button>
+              <div class="playhead" id="playhead"></div>
+            </div>
+            <div class="cutReadout">
+              <span>Start <strong id="trimStartLabel">00:00:00.000</strong></span>
+              <span>End <strong id="trimEndLabel">00:00:00.000</strong></span>
+            </div>
+          </div>
+          <div class="liveAudioControls">
+            <label>
+              Volume
+              <input id="liveVolume" type="range" min="0" max="2" step="0.01" value="1">
+              <span id="liveVolumeValue">1.00x</span>
+            </label>
+            <label>
+              Bass
+              <input id="liveBass" type="range" min="-20" max="20" step="1" value="0">
+              <span id="liveBassValue">0 dB</span>
+            </label>
+            <label>
+              Treble
+              <input id="liveTreble" type="range" min="-20" max="20" step="1" value="0">
+              <span id="liveTrebleValue">0 dB</span>
+            </label>
+          </div>
+          <div class="previewControls">
+            <button id="backBtn" type="button">-1s</button>
+            <button id="startMarkBtn" type="button">Set Start</button>
+            <button id="endMarkBtn" type="button">Set End</button>
+            <button id="forwardBtn" type="button">+1s</button>
+          </div>
+        </section>
+
+        <form id="toolForm" class="panel"></form>
+
+        <section class="panel">
+          <div class="panelHeader">
+            <h3>Command</h3>
+            <button id="runBtn" class="primary">Run FFmpeg</button>
+          </div>
+          <pre id="commandPreview">Choose settings to build a command.</pre>
+        </section>
+
+        <section class="panel">
+          <div class="panelHeader">
+            <h3>Live Log</h3>
+            <button id="stopBtn">Stop Job</button>
+          </div>
+          <pre id="log"></pre>
+        </section>
+      </section>
+
+      <aside class="files">
+        <section>
+          <h3>Input Files</h3>
+          <div id="mediaFiles" class="fileList"></div>
+        </section>
+        <section>
+          <h3>Outputs</h3>
+          <div id="outputFiles" class="fileList"></div>
+        </section>
+      </aside>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
