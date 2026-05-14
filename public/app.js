@@ -56,17 +56,29 @@ const modes = {
   }
 };
 
+const modeOrder = Object.keys(modes);
+const modeFieldsByType = {
+  audio: {
+    convert: ["input", "output", "audioCodec", "audioBitrate", "format", "extraArgs"],
+    trim: ["input", "output", "start", "duration", "to", "audioCodec", "audioBitrate", "extraArgs"]
+  },
+  video: {
+    convert: ["input", "output", "videoCodec", "crf", "preset", "videoBitrate", "format", "extraArgs"],
+    trim: ["input", "output", "start", "duration", "to", "videoCodec", "crf", "preset", "extraArgs"]
+  }
+};
+
 const fieldDefs = {
   input: { label: "Input", type: "selectFile" },
   inputs: { label: "Input files", type: "multiFile" },
   subtitle: { label: "Subtitle file", type: "text", placeholder: "D:\\path\\captions.srt or uploaded file path" },
   output: { label: "Output filename or full path", type: "text", placeholder: "output.mp4" },
   videoCodec: { label: "Video codec", type: "select", options: ["libx264", "libx265", "h264_nvenc", "hevc_nvenc", "libvpx-vp9", "copy", "none"] },
-  audioCodec: { label: "Audio codec", type: "select", options: ["aac", "mp3", "libopus", "flac", "pcm_s16le", "copy", "none"] },
+  audioCodec: { label: "Audio codec", type: "select", options: ["mp3", "aac", "libopus", "flac", "pcm_s16le", "copy", "none"], defaultValue: "mp3" },
   crf: { label: "CRF", type: "number", placeholder: "23" },
   preset: { label: "Preset", type: "select", options: ["medium", "slow", "fast", "faster", "veryfast", "veryslow"] },
   videoBitrate: { label: "Video bitrate", type: "text", placeholder: "3500k" },
-  audioBitrate: { label: "Audio bitrate", type: "text", placeholder: "192k" },
+  audioBitrate: { label: "Audio bitrate", type: "text", placeholder: "320k", defaultValue: "320k" },
   format: { label: "Force format", type: "text", placeholder: "mp4, mp3, matroska" },
   start: { label: "Start", type: "text", placeholder: "00:00:05" },
   duration: { label: "Duration", type: "text", placeholder: "00:00:20" },
@@ -98,6 +110,7 @@ let currentMode = "convert";
 let files = { media: [], outputs: [] };
 let activeJob = null;
 let selectedPreviewPath = "";
+let selectedMedia = { type: "unknown", hasAudio: false, hasVideo: false, audioBitrate: "" };
 let trimStart = 0;
 let trimEnd = 0;
 let activeHandle = null;
@@ -149,14 +162,7 @@ const lyricsCloseBtn = document.querySelector("#lyricsCloseBtn");
 const lyricsFullscreenBox = document.querySelector("#lyricsFullscreenBox");
 const lyricsOverlayMeta = document.querySelector("#lyricsOverlayMeta");
 
-for (const [key, mode] of Object.entries(modes)) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = mode.label;
-  button.addEventListener("click", () => setMode(key));
-  nav.appendChild(button);
-}
-
+renderModeNav();
 setMode(currentMode);
 loadStatus();
 loadFiles();
@@ -221,9 +227,12 @@ dropzone.addEventListener("drop", event => {
 fileInput.addEventListener("change", () => uploadFiles(fileInput.files));
 
 function setMode(mode) {
+  if (!getAvailableModes().includes(mode)) {
+    mode = getDefaultModeForMedia();
+  }
   currentMode = mode;
-  document.querySelectorAll("nav button").forEach((button, index) => {
-    button.classList.toggle("active", Object.keys(modes)[index] === mode);
+  document.querySelectorAll("nav button").forEach(button => {
+    button.classList.toggle("active", button.dataset.mode === mode);
   });
   document.querySelector("#modeTitle").textContent = modes[mode].label;
   document.querySelector("#modeDescription").textContent = modes[mode].description;
@@ -231,12 +240,43 @@ function setMode(mode) {
   preview();
 }
 
+function renderModeNav() {
+  const available = getAvailableModes();
+  nav.innerHTML = "";
+  for (const key of modeOrder) {
+    if (!available.includes(key)) continue;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.mode = key;
+    button.textContent = modes[key].label;
+    button.addEventListener("click", () => setMode(key));
+    nav.appendChild(button);
+  }
+}
+
+function getAvailableModes() {
+  if (selectedMedia.type === "audio") return ["convert", "trim", "audio", "probe", "advanced"];
+  if (selectedMedia.type === "video") return ["convert", "trim", "video", "gif", "frames", "subtitles", "probe", "advanced"];
+  if (selectedMedia.type === "av") return modeOrder;
+  return modeOrder;
+}
+
+function getDefaultModeForMedia() {
+  if (selectedMedia.type === "audio") return "audio";
+  if (selectedMedia.type === "video") return "video";
+  return "convert";
+}
+
+function getModeFields(mode) {
+  return modeFieldsByType[selectedMedia.type]?.[mode] || modes[mode].fields;
+}
+
 function renderForm() {
   const previous = collect();
   form.innerHTML = "";
   const grid = document.createElement("div");
   grid.className = "grid";
-  for (const key of modes[currentMode].fields) {
+  for (const key of getModeFields(currentMode)) {
     grid.appendChild(renderField(key, fieldDefs[key], previous[key]));
   }
   form.appendChild(grid);
@@ -276,6 +316,7 @@ function renderField(key, def, value) {
   input.id = key;
   input.name = key;
   if (def.placeholder) input.placeholder = def.placeholder;
+  if (value === undefined && def.defaultValue !== undefined) value = def.defaultValue;
   if (value !== undefined) {
     if (input.type === "checkbox") input.checked = Boolean(value);
     else if (input.multiple && Array.isArray(value)) {
@@ -290,7 +331,11 @@ function renderField(key, def, value) {
 
 function collect() {
   const data = { mode: currentMode };
-  for (const key of modes[currentMode].fields) {
+  data.mediaType = selectedMedia.type;
+  data.hasAudio = selectedMedia.hasAudio;
+  data.hasVideo = selectedMedia.hasVideo;
+  data.originalAudioBitrate = selectedMedia.audioBitrate;
+  for (const key of getModeFields(currentMode)) {
     const element = form.elements[key];
     if (!element) continue;
     if (element.type === "checkbox") data[key] = element.checked;
@@ -471,14 +516,15 @@ async function deleteFile(kind, file) {
   preview();
 }
 
-function loadPreview(filePath) {
+async function loadPreview(filePath) {
   const file = findMediaFile(filePath);
   if (!file) return;
   selectedPreviewPath = file.path;
-  previewName.textContent = file.name;
+  previewName.textContent = `${file.name} - detecting media type...`;
   mediaPlayer.src = file.url;
   mediaPlayer.load();
   setInputValue(file.path);
+  await detectSelectedMedia(file.path);
   loadArtwork(file.path);
   clearLyrics();
   loadLyrics();
@@ -486,14 +532,68 @@ function loadPreview(filePath) {
 
 function clearPreview() {
   selectedPreviewPath = "";
+  selectedMedia = { type: "unknown", hasAudio: false, hasVideo: false };
   mediaPlayer.removeAttribute("src");
   mediaPlayer.load();
   clearArtwork();
   previewName.textContent = "Choose an input file to preview it here.";
+  renderModeNav();
+  setMode("convert");
   clearLyrics();
   trimStart = 0;
   trimEnd = 0;
   updatePlayerTime();
+}
+
+async function detectSelectedMedia(filePath) {
+  try {
+    const response = await fetch("/api/probe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input: filePath })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Probe failed.");
+
+    const streams = Array.isArray(result.streams) ? result.streams : [];
+    const hasAudio = streams.some(stream => stream.codec_type === "audio");
+    const hasVideo = streams.some(stream => stream.codec_type === "video" && !isAttachedArtworkStream(stream));
+    selectedMedia = {
+      type: hasAudio && hasVideo ? "av" : hasVideo ? "video" : hasAudio ? "audio" : "unknown",
+      hasAudio,
+      hasVideo,
+      audioBitrate: getOriginalAudioBitrate(result)
+    };
+
+    const typeLabel = selectedMedia.type === "av" ? "audio + video" : selectedMedia.type === "audio" ? "audio" : selectedMedia.type === "video" ? "video" : "unknown media";
+    previewName.textContent = `${filePath.split(/[\\/]/).pop()} - ${typeLabel}`;
+  } catch (error) {
+    selectedMedia = { type: "unknown", hasAudio: false, hasVideo: false, audioBitrate: "" };
+    previewName.textContent = `${filePath.split(/[\\/]/).pop()} - could not detect media type`;
+  }
+
+  renderModeNav();
+  if (!getAvailableModes().includes(currentMode)) {
+    setMode(getDefaultModeForMedia());
+  } else {
+    setMode(currentMode);
+  }
+  setAudioBitrateFromSource();
+}
+
+function getOriginalAudioBitrate(probe) {
+  const streams = Array.isArray(probe.streams) ? probe.streams : [];
+  const audioStream = streams.find(stream => stream.codec_type === "audio");
+  const bitRate = Number(audioStream?.bit_rate || probe.format?.bit_rate || 0);
+  if (!Number.isFinite(bitRate) || bitRate <= 0) return "";
+  return `${Math.round(bitRate / 1000)}k`;
+}
+
+function setAudioBitrateFromSource() {
+  if (!selectedMedia.audioBitrate) return;
+  const bitrate = form.elements.audioBitrate;
+  if (bitrate) bitrate.value = selectedMedia.audioBitrate;
+  preview();
 }
 
 async function loadArtwork(filePath) {
@@ -582,6 +682,15 @@ function restorePreviewSelection() {
 
 function findMediaFile(filePath) {
   return files.media.find(file => file.path === filePath || file.name === filePath || file.url === filePath);
+}
+
+function isAttachedArtworkStream(stream) {
+  return Boolean(
+    stream.disposition?.attached_pic ||
+    stream.disposition?.timed_thumbnails ||
+    stream.attached_pic ||
+    stream.codec_name === "mjpeg" && stream.tags?.comment?.toLowerCase?.().includes("cover")
+  );
 }
 
 function setInputValue(filePath) {

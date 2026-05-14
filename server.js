@@ -203,6 +203,7 @@ function createJob(body) {
   const input = normalizeInput(body.input);
   const output = normalizeOutput(body.output || defaultOutput(body, mode));
   const overwrite = body.overwrite !== false;
+  const audioOnlyInput = body.mediaType === "audio";
   const args = [];
 
   if (overwrite) args.push("-y");
@@ -224,9 +225,11 @@ function createJob(body) {
 
   switch (mode) {
     case "convert":
+      if (audioOnlyInput) args.push("-vn");
       args.push(...convertArgs(body));
       break;
     case "trim":
+      if (audioOnlyInput) args.push("-vn");
       args.push(...trimArgs(body), ...convertArgs(body));
       break;
     case "audio":
@@ -265,12 +268,13 @@ function inputArgs(body) {
 
 function convertArgs(body) {
   const args = [];
-  if (body.videoCodec) args.push("-c:v", body.videoCodec);
+  if (body.mediaType !== "audio" && body.videoCodec) args.push("-c:v", body.videoCodec);
   if (body.audioCodec) args.push("-c:a", body.audioCodec);
   if (body.crf) args.push("-crf", String(body.crf));
   if (body.preset) args.push("-preset", body.preset);
   if (body.videoBitrate) args.push("-b:v", body.videoBitrate);
-  if (body.audioBitrate) args.push("-b:a", body.audioBitrate);
+  const audioBitrate = body.audioBitrate || body.originalAudioBitrate || (body.audioCodec === "mp3" ? "320k" : "");
+  if (audioBitrate && body.audioCodec !== "copy") args.push("-b:a", audioBitrate);
   if (body.format) args.push("-f", body.format);
   return args;
 }
@@ -296,7 +300,8 @@ function audioArgs(body) {
   if (body.channels) args.push("-ac", String(body.channels));
   if (filters.length) args.push("-af", filters.join(","));
   args.push("-c:a", body.audioCodec || "aac");
-  if (body.audioBitrate) args.push("-b:a", body.audioBitrate);
+  const audioBitrate = body.audioBitrate || body.originalAudioBitrate || (body.audioCodec === "mp3" ? "320k" : "");
+  if (audioBitrate && body.audioCodec !== "copy") args.push("-b:a", audioBitrate);
   return args;
 }
 
@@ -410,6 +415,9 @@ function defaultOutput(body, mode) {
     gif: "gif",
     frames: "jpg"
   };
+  if ((mode === "trim" || mode === "convert") && body.mediaType === "audio") {
+    return `${mode}-${Date.now()}.mp3`;
+  }
   const ext = body.extension || extByMode[mode] || "mp4";
   return `${mode}-${Date.now()}.${ext}`;
 }
